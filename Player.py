@@ -1,6 +1,4 @@
-from abc import ABC
-
-class Player(ABC):
+class Player:
     def __init__(self, name, strategy=None, risk_factor=0):
         self.name = name
         self.strategy = strategy

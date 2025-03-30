@@ -1,3 +1,5 @@
+from Player import Player
+
 class BotPlayer(Player):
     STRATEGY = ("this bot goes for 23 because thats what i tested to be good value. "
                 "however, it changes based on how close the bot is to winning, and how close opponents are to winning")

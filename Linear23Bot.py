@@ -1,8 +1,10 @@
+from BotPlayer import BotPlayer
+
 class Linear23Bot(BotPlayer):
     STRATEGY = "this bot goes for 23 as the target value, but when opponents are close to winning, it goes for higher values"
 
     def __init__(self, name):
-        super().__init__(name, Linear23BotShawn.STRATEGY)
+        super().__init__(name, Linear23Bot.STRATEGY)
 
     def wants_to_roll(self, my_score, hand_score, other_scores, winning_score):
         # Through trial and error I got 32 as the quickest way to 100 on average of 10,000 tests
@@ -15,7 +17,7 @@ class Linear23Bot(BotPlayer):
         return role
 
     def _if_not_near_winning(self, other_scores, winning_score, hand_score):
-        opponent_closest_to_winning = self.mostDangerousOpponnetProximity(other_scores, winning_score)
+        opponent_closest_to_winning = self.most_dangerous_opponent_proximity(other_scores, winning_score)
         distance_from_player = winning_score - opponent_closest_to_winning - hand_score
 
         if distance_from_player > 40:
@@ -38,4 +40,4 @@ class Linear23Bot(BotPlayer):
         return True
 
     def get_strategy(self):
-        return Linear23BotShawn.STRATEGY
+        return Linear23Bot.STRATEGY
