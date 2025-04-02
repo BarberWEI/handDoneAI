@@ -9,15 +9,16 @@ class AIBotPlayer(Player):
     #             "however, it changes based on how close the bot is to winning, and how close opponents are to winning")
     
     
-    def __init__(self, name, model = PigModel(), train = False, device='cpu', strategy=None):
+    def __init__(self, name, model, train, model_path = "", device='cpu', strategy=None):
         super().__init__(name)
         if strategy is not None:
             self.STRATEGY = strategy
         self.model = model.to(device)
         self.train = train
         self.device = device
-        self.model.load_state_dict(torch.load("./models/model.pth", map_location=self.device))
-        self.model.eval()
+        if not train:
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+            self.model.eval()
 
     # def wants_to_roll(self, my_score, hand_score, other_scores, winning_score):
     #     input_tuple = (my_score, hand_score, self.most_dangerous_opponent_proximity(other_scores, winning_score), winning_score)
@@ -50,8 +51,10 @@ class AIBotPlayer(Player):
         probability = output[0, 0]  # Keep as tensor so gradients can flow if needed.
         
         # Sample an action using the probability.
+        probability = torch.where(torch.isnan(probability), torch.tensor(0.5, device=probability.device), probability)
+        probability = probability.clamp(1e-6, 1 - 1e-6)
         action_sample = torch.bernoulli(probability)
-        
+
         # Always return a tuple: (decision, probability)
         if action_sample.item() == 1:
             return (True, probability)

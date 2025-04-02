@@ -3,6 +3,7 @@ from PassThePigs import PassThePigs
 import random 
 from Models import PigModel
 from AIBotPlayer import AIBotPlayer
+import copy
 
 class MnistTrainer:
     def __init__(self, model, optimizer, loss_fn, train_loader, device='cuda'):
@@ -106,33 +107,12 @@ class PigTrainer:
             self.players.append(AIBotPlayer("aibot " + str(i), PigModel(), True))
         
         self.optimizers = [torch.optim.Adam(player.model.parameters(), lr=0.001) for player in self.players]
+        self.lowestLoss = 1
+        self.lowestLossPlayer = AIBotPlayer("lowestBot", PigModel(), True)
 
+    def getPlayer0(self):
+        return self.players[0]
 
-    def logLoss(self, loss_tuples):
-        total_loss = 0.0
-        count = 0
-
-        for prob_action, reward in loss_tuples:
-            # Assume prob_action is already a tensor (with requires_grad=True)
-            # and reward is a scalar (or tensor) that does not require grad.
-            # If reward is a float, you can wrap it but there's no need for gradients.
-            if not torch.is_tensor(prob_action):
-                raise ValueError("Expected prob_action to be a tensor that requires grad.")
-            if not torch.is_tensor(reward):
-                reward = torch.tensor(reward, dtype=torch.float32)
-            
-            log_prob = torch.log(prob_action)
-            loss = -log_prob * reward
-            total_loss += loss
-            count += 1
-
-        average_loss = total_loss / count if count > 0 else total_loss
-        return average_loss
-
-    
-    def train_loader(self):
-        return True
-            
     # def trainEpoch(self):
     #     for player in self.players:
     #         player.model.train() 
@@ -172,7 +152,7 @@ class PigTrainer:
                 # 'action' is 1 if the player chose to roll, 0 if they passed,
                 # 'reward' is the reward.
                 state, action, reward, _ = batch
-                
+
                 # Recompute the probability from the stored state.
                 input_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
                 output = player.model(input_tensor)
@@ -190,11 +170,19 @@ class PigTrainer:
                 # Compute the loss for this sample.
                 # For policy gradients, a common loss is:
                 #    loss = -log(prob) * reward
+                prob = torch.clamp(prob, min=1e-6, max=1 - 1e-6)
+
                 loss = -torch.log(prob) * reward_tensor
+                
+                if loss > 0 and loss < self.lowestLoss:
+                    self.lowestLoss = loss
+                    self.lowestLossPlayer.model.load_state_dict(player.model.state_dict())
+                    
                 
                 # Backpropagate the loss.
                 self.optimizers[idx].zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(player.model.parameters(), max_norm=1.0)
                 self.optimizers[idx].step()
                 
                 total_loss[idx] += loss.item()
@@ -214,7 +202,25 @@ class PigTrainer:
         Args:
             file_path (str): The path where the model state will be saved.
         """
-        torch.save(self.players[0].model.state_dict(), file_path)
+        whowon = [0] * len(self.players)
+        for _ in range(1000):
+            piggy = PassThePigs(len(self.players), self.print_game)
+            player_number, won = self.reset(piggy, len(self.players))
+            
+            while not won:
+                self.one_player_turn(player_number, self.players, piggy)
+                self.display_game_status(self.players, piggy)
+
+                if piggy.get_player_bank(player_number) >= self.WINNING_SCORE:
+                    won = True
+                    if self.print_game:
+                        print("Game over! Winner is: " + self.players[player_number].get_name())
+                else:
+                    player_number = (player_number + 1) % len(self.players)
+        max_value = max(whowon)
+        max_index = whowon.index(max_value)
+        torch.save(self.lowestLossPlayer.model.state_dict(),"./models/lowestloss.pth")
+        torch.save(self.players[max_index].model.state_dict(), file_path)
     
     def train(self) :
         piggy = PassThePigs(len(self.players), self.print_game)
@@ -226,6 +232,10 @@ class PigTrainer:
 
             if piggy.get_player_bank(player_number) >= self.WINNING_SCORE:
                 won = True
+                # At the end of game:
+                for state, action, reward, prob in self.sar[player_number]:
+                    reward += .5  # Big boost for winning game
+
                 if self.print_game:
                     print("Game over! Winner is: " + self.players[player_number].get_name())
             else:
@@ -234,6 +244,7 @@ class PigTrainer:
         
         print("epoch done")        
         print(self.trainEpoch())
+        self.sar = [[] for _ in range(len(self.players))]
         
     def one_player_turn(self, player_number, players, piggy):
         pigged_out = False
@@ -255,12 +266,12 @@ class PigTrainer:
                 if self.print_game:
                     print(f"{players[player_number].get_name()} rolls a ", end="")
                 pigged_out, hand_value = piggy.player_role_pigs()
-                self.sar[player_number].append((state, 1, (hand_value - state[1]) * 0.03, probobility))
+                self.sar[player_number].append((state, 1, (hand_value - state[1]) * 0.003, probobility))
             else:
                 if self.print_game:
                     print(f"{players[player_number].get_name()} passes")
                 passed = True
-                self.sar[player_number].append((state, 0, state[1] * 0.05, probobility))
+                self.sar[player_number].append((state, 0, state[1] * 0.008 , probobility))
         piggy.change_player_bank_after_round(player_number)
 
     def display_game_status(self, players, piggy):
