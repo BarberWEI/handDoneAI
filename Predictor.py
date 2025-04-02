@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class Predictor:
-    def __init__(self, model_class, model_path, input_size, hidden_sizes, output_size, device='cpu'):
+    def __init__(self, model_class, model_path, input_size = 0, hidden_sizes = 0, output_size = 0, device='cpu'):
         """
         Initializes the Predictor by loading a saved model.
         
@@ -17,8 +17,10 @@ class Predictor:
         self.device = torch.device(device)
         
         # Instantiate the model architecture
-        self.model = model_class(input_size, hidden_sizes, output_size).to(self.device)
-        
+        if input_size != 0:
+            self.model = model_class(input_size, hidden_sizes, output_size).to(self.device)
+        else:
+            self.model = model_class().to(self.device)
         # Load saved weights
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.eval()  # Set to eval mode
@@ -36,5 +38,5 @@ class Predictor:
         with torch.no_grad():
             input_tensor = input_tensor.to(self.device)
             output = self.model(input_tensor)
-            predicted_class = output.argmax(dim=1).item()
+            predicted_class = output.argmax(dim=0).item()
             return predicted_class

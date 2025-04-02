@@ -10,8 +10,15 @@ class PassThePigs:
         self.print_game = print_game
         self.hand_value = 0
 
+
+
     def get_hand_value(self):
         return self.hand_value
+    
+    def reset(self):
+        self.hand_value = 0
+        for bank_index in range(len(self.players_bank)):
+           self.players_bank[bank_index] = 0
 
     # Returns the value of the pigs based on the pig types rolled
     def value_of_pigs(self):
@@ -59,18 +66,18 @@ class PassThePigs:
         return [bank for i, bank in enumerate(self.players_bank) if i != player_number]
 
     # Simulate a player's pig roll turn and update hand_value accordingly
-    def player_role_pigs(self, player_number):
+    def player_role_pigs(self):
         value = self.value_of_pigs()
         if value != 0:
             self.hand_value += value
             if self.print_game:
                 print(f" for a roll of {value}. hand score is now {self.hand_value}.")
-            return False
+            return False, self.hand_value
         else:
             self.hand_value = 0
             if self.print_game:
                 print(f" for a roll of {value} hand score is now {self.hand_value} that's a Pig Out!")
-            return True
+            return True, self.hand_value
 
     # After a round, add the hand value to the player's bank and reset hand_value
     def change_player_bank_after_round(self, player_number):

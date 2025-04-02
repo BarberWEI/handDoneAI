@@ -14,7 +14,7 @@ class Linear23Bot(BotPlayer):
                 role = False
         else:
             role = self._if_not_near_winning(other_scores, winning_score, hand_score)
-        return role
+        return (role, 1)
 
     def _if_not_near_winning(self, other_scores, winning_score, hand_score):
         opponent_closest_to_winning = self.most_dangerous_opponent_proximity(other_scores, winning_score)

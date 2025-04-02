@@ -1,16 +1,18 @@
 import torch
 import torch.nn as nn
 
-class PigDecisionNet(nn.Module):
+class PigModel(nn.Module):
     def __init__(self):
-        super(PigDecisionNet, self).__init__()
+        super(PigModel, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(4, 16),   # 4 inputs
+            nn.Linear(4, 64),   # 4 inputs
             nn.ReLU(),
-            nn.Linear(16, 8),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(8, 1),    # 1 output logit
-            nn.Sigmoid()        # output between 0 and 1
+            nn.Linear(64, 16),
+            nn.ReLU(),
+            nn.Linear(16, 2),  
+            nn.Softmax(dim=1)# 2 outputs for the two possible actions, pass or hit
         )
 
     def forward(self, x):
